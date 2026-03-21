@@ -1,16 +1,30 @@
-*
+bin/
+dist/
 
-# But not these files...
-!/.gitignore
+.vscode/
 
-!*.go
-!go.sum
-!go.mod
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-!README.md
-!LICENSE
+# Test binary, built with `go test -c`
+*.test
 
-!Makefile
+# Code coverage profiles and other test artifacts
+*.out
+coverage.*
+*.coverprofile
+profile.cov
 
-# ...even if they are in subdirectories
-!*/
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
