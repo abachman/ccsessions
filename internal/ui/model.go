@@ -29,7 +29,7 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("240")).
 			Padding(0, 1)
-	detailStyle = listStyle.Copy()
+	detailStyle = listStyle
 )
 
 type focusTarget int
@@ -364,11 +364,6 @@ func truncate(value string, width int) string {
 		return value
 	}
 	return string(runes[:width-3]) + "..."
-}
-
-func oneLine(value string) string {
-	value = strings.Join(strings.Fields(value), " ")
-	return truncate(value, 120)
 }
 
 func wrapLabelValue(label, value string, width int) string {

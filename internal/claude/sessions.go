@@ -3,6 +3,7 @@ package claude
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -100,14 +101,23 @@ func projectHistoryDir(cwd string) (string, error) {
 	return filepath.Join(home, ".claude", "projects", sanitized), nil
 }
 
-func ParseSessionFile(path string) (Session, error) {
+func ParseSessionFile(path string) (session Session, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return Session{}, fmt.Errorf("open %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			closeErr = fmt.Errorf("close %s: %w", path, closeErr)
+			if err != nil {
+				err = errors.Join(err, closeErr)
+				return
+			}
+			err = closeErr
+		}
+	}()
 
-	session := Session{
+	session = Session{
 		ID:          strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
 		Path:        path,
 		ProjectPath: filepath.Dir(path),
