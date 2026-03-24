@@ -3,6 +3,8 @@ dist/
 
 .vscode/
 
+.cache/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
