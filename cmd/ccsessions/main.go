@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"cview/internal/ui"
+	"ccsessions/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

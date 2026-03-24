@@ -1,6 +1,6 @@
-# cview
+# ccsessions
 
-`cview` is a terminal UI for browsing Claude Code session history for the current working directory.
+`ccsessions` (from **C**laude **C**ode **Sessions**) is a terminal UI for browsing Claude Code session history for the current working directory.
 
 It maps the current directory to Claude's project history folder under `~/.claude/projects`, loads each `.jsonl` session file, and shows:
 
@@ -11,7 +11,7 @@ It maps the current directory to Claude's project history folder under `~/.claud
 ## Run
 
 ```bash
-go run ./cmd/cview
+go run ./cmd/ccsessions
 ```
 
 ## Controls

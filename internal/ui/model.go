@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"cview/internal/claude"
+	"ccsessions/internal/claude"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -19,8 +19,37 @@ var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("205"))
+	sectionTitleStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("111"))
 	mutedStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
+	promptBlockStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("230")).
+				Background(lipgloss.Color("236")).
+				Padding(0, 1).
+				MarginLeft(3)
+	assistantBlockStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("252"))
+	toolCallStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("223")).
+			Background(lipgloss.Color("237")).
+			Padding(0, 1)
+	toolResultStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("250")).
+			Background(lipgloss.Color("235")).
+			Padding(0, 1).
+			MarginLeft(2)
+	toolErrorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("230")).
+			Background(lipgloss.Color("124")).
+			Padding(0, 1).
+			MarginLeft(2)
+	progressStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("109"))
+	metaStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243"))
 	selectedStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("230")).
 			Background(lipgloss.Color("62")).
@@ -228,17 +257,11 @@ func (m *Model) syncDetails(resetScroll bool) {
 		fmt.Sprintf("Messages: %d total, %d user, %d assistant", selected.MessageCount, selected.UserPrompts, selected.AssistantMsgs),
 		wrapLabelValue("File", selected.Path, max(20, m.details.Width)),
 		"",
-		titleStyle.Render("Full Session Log"),
+		sectionTitleStyle.Render("Full Session Log"),
 	)
 
 	for _, entry := range selected.Transcript {
-		label := entry.Role
-		if label == "" {
-			label = entry.Type
-		}
-		header := fmt.Sprintf("[%s] %s", strings.ToUpper(label), formatTime(entry.Timestamp))
-		lines = append(lines, header)
-		lines = append(lines, wrapText(entry.Content, max(20, m.details.Width)))
+		lines = append(lines, m.renderEntry(entry))
 		lines = append(lines, "")
 	}
 
@@ -402,6 +425,105 @@ func wrapText(value string, width int) string {
 	}
 
 	return strings.Join(wrapped, "\n")
+}
+
+func (m Model) renderEntry(entry claude.Entry) string {
+	width := max(20, m.details.Width)
+	switch entry.Kind {
+	case claude.EntryHumanPrompt:
+		return renderPromptEntry(entry, width)
+	case claude.EntryAssistantText:
+		return renderAssistantEntry(entry, width)
+	case claude.EntryToolCall:
+		return renderToolCallEntry(entry, width)
+	case claude.EntryToolResult:
+		return renderToolResultEntry(entry, width)
+	case claude.EntryThinking:
+		return renderThinkingEntry(entry, width)
+	case claude.EntryProgress:
+		return renderProgressEntry(entry, width)
+	case claude.EntryMeta:
+		return renderMetaEntry(entry, width)
+	default:
+		return wrapText(entry.Content, width)
+	}
+}
+
+func renderPromptEntry(entry claude.Entry, width int) string {
+	header := mutedStyle.Render(fmt.Sprintf("Prompt  %s", formatTime(entry.Timestamp)))
+	body := promptBlockStyle.MaxWidth(max(10, width-3)).Render(wrapText(entry.Content, max(10, width-7)))
+	return strings.Join([]string{header, body}, "\n")
+}
+
+func renderAssistantEntry(entry claude.Entry, width int) string {
+	header := mutedStyle.Render(fmt.Sprintf("Assistant  %s", formatTime(entry.Timestamp)))
+	body := assistantBlockStyle.Render(wrapText(entry.Content, width))
+	return strings.Join([]string{header, body}, "\n")
+}
+
+func renderToolCallEntry(entry claude.Entry, width int) string {
+	title := firstNonEmpty(entry.Title, "Tool Call")
+	header := mutedStyle.Render(fmt.Sprintf("%s  %s", title, formatTime(entry.Timestamp)))
+	body := toolCallStyle.MaxWidth(width).Render(wrapText(entry.Content, max(10, width-2)))
+	return strings.Join([]string{header, body}, "\n")
+}
+
+func renderToolResultEntry(entry claude.Entry, width int) string {
+	headerLabel := "Tool Result"
+	if entry.IsError {
+		headerLabel = "Tool Error"
+	}
+	header := mutedStyle.Render(fmt.Sprintf("%s  %s", headerLabel, formatTime(entry.Timestamp)))
+	contentWidth := max(10, width-4)
+	bodyText := wrapText(entry.Content, contentWidth)
+	if entry.IsError {
+		return strings.Join([]string{header, toolErrorStyle.MaxWidth(max(10, width-2)).Render(bodyText)}, "\n")
+	}
+	return strings.Join([]string{header, toolResultStyle.MaxWidth(max(10, width-2)).Render(bodyText)}, "\n")
+}
+
+func renderThinkingEntry(entry claude.Entry, width int) string {
+	label := firstNonEmpty(entry.Title, "Thinking")
+	return progressStyle.Render(truncate(label+"  "+formatTime(entry.Timestamp), width))
+}
+
+func renderProgressEntry(entry claude.Entry, width int) string {
+	label := firstNonEmpty(entry.Title, "Progress")
+	text := label
+	if strings.TrimSpace(entry.Content) != "" && entry.Content != label {
+		text += "  " + oneLineForUI(entry.Content)
+	}
+	return progressStyle.Render(wrapText(text+"  "+formatTime(entry.Timestamp), width))
+}
+
+func renderMetaEntry(entry claude.Entry, width int) string {
+	label := firstNonEmpty(entry.Title, "Meta")
+	text := label
+	if strings.TrimSpace(entry.Content) != "" {
+		text += ": " + oneLineForUI(entry.Content)
+	}
+	if !entry.Timestamp.IsZero() {
+		text += "  " + formatTime(entry.Timestamp)
+	}
+	return metaStyle.Render(wrapText(text, width))
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func oneLineForUI(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return value
+	}
+	value = strings.ReplaceAll(value, "\n", " ")
+	return strings.Join(strings.Fields(value), " ")
 }
 
 func max(a, b int) int {

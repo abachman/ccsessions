@@ -1,4 +1,4 @@
-module cview
+module ccsessions
 
 go 1.26.0
 
