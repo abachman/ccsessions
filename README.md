@@ -14,6 +14,34 @@ It maps the current directory to Claude's project history folder under `~/.claud
 go run ./cmd/ccsessions
 ```
 
+## Build
+
+Build the binary into `./bin/ccsessions`:
+
+```bash
+make build
+```
+
+Or build it directly with Go:
+
+```bash
+go build -o bin/ccsessions ./cmd/ccsessions
+```
+
+## Install
+
+Install `ccsessions` into your Go binary directory:
+
+```bash
+go install ./cmd/ccsessions
+```
+
+After that, run it with:
+
+```bash
+ccsessions
+```
+
 ## Controls
 
 - Type to filter sessions
