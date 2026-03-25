@@ -20,6 +20,12 @@ To read sessions from a different Claude config directory:
 go run ./cmd/ccsessions --claude-dir ~/.claude-personal
 ```
 
+To show discovery diagnostics in the UI header:
+
+```bash
+go run ./cmd/ccsessions --claude-dir ~/.claude-personal --debug
+```
+
 ## Build
 
 Build the binary into `./bin/ccsessions`:
@@ -52,6 +58,12 @@ Or:
 
 ```bash
 ccsessions --claude-dir ~/.claude-personal
+```
+
+You can combine it with:
+
+```bash
+ccsessions --debug
 ```
 
 ## Controls

@@ -2,6 +2,7 @@ package claude
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -21,7 +22,12 @@ func TestProjectHistoryDir_DefaultClaudeDir(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	got, err := projectHistoryDir("/tmp/my-project", "")
+	baseDir, err := resolveClaudeDir("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := projectHistoryDir("/tmp/my-project", baseDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -33,7 +39,12 @@ func TestProjectHistoryDir_DefaultClaudeDir(t *testing.T) {
 }
 
 func TestProjectHistoryDir_CustomClaudeDir(t *testing.T) {
-	got, err := projectHistoryDir("/tmp/my-project", "/tmp/.claude-personal")
+	baseDir, err := resolveClaudeDir("/tmp/.claude-personal")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := projectHistoryDir("/tmp/my-project", baseDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -48,7 +59,12 @@ func TestProjectHistoryDir_TildeClaudeDir(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	got, err := projectHistoryDir("/tmp/my-project", "~/.claude-personal")
+	baseDir, err := resolveClaudeDir("~/.claude-personal")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := projectHistoryDir("/tmp/my-project", baseDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -56,6 +72,63 @@ func TestProjectHistoryDir_TildeClaudeDir(t *testing.T) {
 	want := filepath.Join(home, ".claude-personal", "projects", "-tmp-my-project")
 	if got != want {
 		t.Errorf("projectHistoryDir() = %q, want %q", got, want)
+	}
+}
+
+func TestDiscoverForDir_DebugInfoFound(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	cwd := "/tmp/my-project"
+	projectDir, err := projectHistoryDir(cwd, filepath.Join(home, ".claude"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	sessionFile := filepath.Join(projectDir, "session.jsonl")
+	if err := os.WriteFile(sessionFile, []byte("{\"sessionId\":\"abc123\"}\n"), 0o644); err != nil {
+		t.Fatalf("write session: %v", err)
+	}
+
+	sessions, info, err := discoverForDir(cwd, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !info.ProjectFound {
+		t.Fatalf("ProjectFound = false, want true")
+	}
+	if info.SessionCount != 1 {
+		t.Fatalf("SessionCount = %d, want 1", info.SessionCount)
+	}
+	if info.ClaudeDir != filepath.Join(home, ".claude") {
+		t.Fatalf("ClaudeDir = %q, want %q", info.ClaudeDir, filepath.Join(home, ".claude"))
+	}
+	if info.ProjectDir != projectDir {
+		t.Fatalf("ProjectDir = %q, want %q", info.ProjectDir, projectDir)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("len(sessions) = %d, want 1", len(sessions))
+	}
+}
+
+func TestDiscoverForDir_DebugInfoMissingProject(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	sessions, info, err := discoverForDir("/tmp/missing-project", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.ProjectFound {
+		t.Fatalf("ProjectFound = true, want false")
+	}
+	if info.SessionCount != 0 {
+		t.Fatalf("SessionCount = %d, want 0", info.SessionCount)
+	}
+	if len(sessions) != 0 {
+		t.Fatalf("len(sessions) = %d, want 0", len(sessions))
 	}
 }
 

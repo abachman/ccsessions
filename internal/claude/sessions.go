@@ -54,6 +54,13 @@ type Entry struct {
 	IsError      bool
 }
 
+type DiscoveryInfo struct {
+	ClaudeDir    string
+	ProjectDir   string
+	ProjectFound bool
+	SessionCount int
+}
+
 type rawRecord struct {
 	Type             string          `json:"type"`
 	Subtype          string          `json:"subtype"`
@@ -122,27 +129,47 @@ type rawProgress struct {
 	Message            json.RawMessage `json:"message"`
 }
 
-func DiscoverForCurrentDir(claudeDir string) ([]Session, error) {
+func DiscoverForCurrentDir(claudeDir string) ([]Session, DiscoveryInfo, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, DiscoveryInfo{}, err
 	}
 
-	root, err := projectHistoryDir(cwd, claudeDir)
+	return discoverForDir(cwd, claudeDir)
+}
+
+func discoverForDir(cwd, claudeDir string) ([]Session, DiscoveryInfo, error) {
+	baseDir, err := resolveClaudeDir(claudeDir)
 	if err != nil {
-		return nil, err
+		return nil, DiscoveryInfo{}, err
+	}
+
+	root, err := projectHistoryDir(cwd, baseDir)
+	if err != nil {
+		return nil, DiscoveryInfo{}, err
+	}
+
+	info := DiscoveryInfo{
+		ClaudeDir:  baseDir,
+		ProjectDir: root,
+	}
+	if stat, err := os.Stat(root); err == nil && stat.IsDir() {
+		info.ProjectFound = true
+	} else if err != nil && !os.IsNotExist(err) {
+		return nil, info, err
 	}
 
 	matches, err := filepath.Glob(filepath.Join(root, "*.jsonl"))
 	if err != nil {
-		return nil, fmt.Errorf("glob session files: %w", err)
+		return nil, info, fmt.Errorf("glob session files: %w", err)
 	}
+	info.SessionCount = len(matches)
 
 	sessions := make([]Session, 0, len(matches))
 	for _, match := range matches {
 		session, err := ParseSessionFile(match)
 		if err != nil {
-			return nil, err
+			return nil, info, err
 		}
 		sessions = append(sessions, session)
 	}
@@ -151,14 +178,10 @@ func DiscoverForCurrentDir(claudeDir string) ([]Session, error) {
 		return sessions[i].UpdatedAt.After(sessions[j].UpdatedAt)
 	})
 
-	return sessions, nil
+	return sessions, info, nil
 }
 
-func projectHistoryDir(cwd, claudeDir string) (string, error) {
-	baseDir, err := resolveClaudeDir(claudeDir)
-	if err != nil {
-		return "", err
-	}
+func projectHistoryDir(cwd, baseDir string) (string, error) {
 	sanitized := strings.ReplaceAll(filepath.Clean(cwd), string(filepath.Separator), "-")
 	return filepath.Join(baseDir, "projects", sanitized), nil
 }

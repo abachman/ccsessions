@@ -81,24 +81,28 @@ type Model struct {
 	err           error
 	focus         focusTarget
 	projectFolder string
+	debug         bool
+	discovery     claude.DiscoveryInfo
 }
 
-func NewModel(claudeDir string) (Model, error) {
+func NewModel(claudeDir string, debug bool) (Model, error) {
 	search := textinput.New()
 	search.Placeholder = "Search session history"
 	search.Prompt = "Search: "
 	search.Focus()
 
-	sessions, err := claude.DiscoverForCurrentDir(claudeDir)
+	sessions, discovery, err := claude.DiscoverForCurrentDir(claudeDir)
 	if err != nil {
 		return Model{}, err
 	}
 
 	model := Model{
-		search:   search,
-		sessions: sessions,
-		filtered: sessions,
-		focus:    focusSearch,
+		search:    search,
+		sessions:  sessions,
+		filtered:  sessions,
+		focus:     focusSearch,
+		debug:     debug,
+		discovery: discovery,
 	}
 	model.projectFolder = currentProjectDir(sessions)
 	model.list = viewport.New(0, 0)
@@ -172,6 +176,9 @@ func (m Model) View() string {
 	if m.projectFolder != "" {
 		header = append(header, mutedStyle.Render(m.projectFolder))
 	}
+	if m.debug {
+		header = append(header, mutedStyle.Render(m.debugSummary()))
+	}
 
 	leftWidth, rightWidth, panelHeight := m.panelDimensions()
 	list := m.panelStyle(focusList).Width(leftWidth).Height(panelHeight).Render(m.list.View())
@@ -185,6 +192,21 @@ func (m Model) View() string {
 		body,
 		mutedStyle.Render("Controls: Tab cycles focus, j/k or arrows move or scroll in the focused pane, q quits"),
 	}, "\n\n"))
+}
+
+func (m Model) debugSummary() string {
+	projectState := "missing"
+	if m.discovery.ProjectFound {
+		projectState = "found"
+	}
+
+	return fmt.Sprintf(
+		"debug claude_dir=%s project_dir=%s project=%s sessions=%d",
+		m.discovery.ClaudeDir,
+		m.discovery.ProjectDir,
+		projectState,
+		m.discovery.SessionCount,
+	)
 }
 
 func (m *Model) applyFilter() {

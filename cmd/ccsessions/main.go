@@ -12,9 +12,10 @@ import (
 
 func main() {
 	claudeDir := flag.String("claude-dir", "", "Claude config directory to read session history from (defaults to ~/.claude)")
+	debug := flag.Bool("debug", false, "Show Claude session discovery diagnostics")
 	flag.Parse()
 
-	model, err := ui.NewModel(*claudeDir)
+	model, err := ui.NewModel(*claudeDir, *debug)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "startup error: %v\n", err)
 		os.Exit(1)
