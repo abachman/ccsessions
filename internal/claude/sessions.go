@@ -122,13 +122,13 @@ type rawProgress struct {
 	Message            json.RawMessage `json:"message"`
 }
 
-func DiscoverForCurrentDir() ([]Session, error) {
+func DiscoverForCurrentDir(claudeDir string) ([]Session, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
 
-	root, err := projectHistoryDir(cwd)
+	root, err := projectHistoryDir(cwd, claudeDir)
 	if err != nil {
 		return nil, err
 	}
@@ -154,14 +154,37 @@ func DiscoverForCurrentDir() ([]Session, error) {
 	return sessions, nil
 }
 
-func projectHistoryDir(cwd string) (string, error) {
-	home, err := os.UserHomeDir()
+func projectHistoryDir(cwd, claudeDir string) (string, error) {
+	baseDir, err := resolveClaudeDir(claudeDir)
 	if err != nil {
 		return "", err
 	}
-
 	sanitized := strings.ReplaceAll(filepath.Clean(cwd), string(filepath.Separator), "-")
-	return filepath.Join(home, ".claude", "projects", sanitized), nil
+	return filepath.Join(baseDir, "projects", sanitized), nil
+}
+
+func resolveClaudeDir(dir string) (string, error) {
+	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, ".claude"), nil
+	}
+
+	if dir == "~" {
+		return os.UserHomeDir()
+	}
+
+	if strings.HasPrefix(dir, "~"+string(filepath.Separator)) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, dir[2:]), nil
+	}
+
+	return filepath.Clean(dir), nil
 }
 
 func ParseSessionFile(path string) (session Session, err error) {

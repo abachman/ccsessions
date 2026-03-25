@@ -15,6 +15,50 @@ func testdataPath(name string) string {
 	return filepath.Join(filepath.Dir(file), "testdata", name)
 }
 
+// --- projectHistoryDir ---
+
+func TestProjectHistoryDir_DefaultClaudeDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := projectHistoryDir("/tmp/my-project", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := filepath.Join(home, ".claude", "projects", "-tmp-my-project")
+	if got != want {
+		t.Errorf("projectHistoryDir() = %q, want %q", got, want)
+	}
+}
+
+func TestProjectHistoryDir_CustomClaudeDir(t *testing.T) {
+	got, err := projectHistoryDir("/tmp/my-project", "/tmp/.claude-personal")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := filepath.Join("/tmp/.claude-personal", "projects", "-tmp-my-project")
+	if got != want {
+		t.Errorf("projectHistoryDir() = %q, want %q", got, want)
+	}
+}
+
+func TestProjectHistoryDir_TildeClaudeDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := projectHistoryDir("/tmp/my-project", "~/.claude-personal")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := filepath.Join(home, ".claude-personal", "projects", "-tmp-my-project")
+	if got != want {
+		t.Errorf("projectHistoryDir() = %q, want %q", got, want)
+	}
+}
+
 // --- ParseSessionFile ---
 
 func TestParseSessionFile_Simple(t *testing.T) {

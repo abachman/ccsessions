@@ -83,13 +83,13 @@ type Model struct {
 	projectFolder string
 }
 
-func NewModel() (Model, error) {
+func NewModel(claudeDir string) (Model, error) {
 	search := textinput.New()
 	search.Placeholder = "Search session history"
 	search.Prompt = "Search: "
 	search.Focus()
 
-	sessions, err := claude.DiscoverForCurrentDir()
+	sessions, err := claude.DiscoverForCurrentDir(claudeDir)
 	if err != nil {
 		return Model{}, err
 	}

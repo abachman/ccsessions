@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -10,7 +11,10 @@ import (
 )
 
 func main() {
-	model, err := ui.NewModel()
+	claudeDir := flag.String("claude-dir", "", "Claude config directory to read session history from (defaults to ~/.claude)")
+	flag.Parse()
+
+	model, err := ui.NewModel(*claudeDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "startup error: %v\n", err)
 		os.Exit(1)
