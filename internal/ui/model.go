@@ -650,10 +650,6 @@ func wrapDetailText(value string, width int, kind detailLineKind) []detailLine {
 	return out
 }
 
-func wrapText(value string, width int) string {
-	return strings.Join(wrapTextLines(value, width), "\n")
-}
-
 func wrapTextLines(value string, width int) []string {
 	if width <= 0 {
 		return []string{value}
